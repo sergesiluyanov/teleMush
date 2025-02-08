@@ -31,5 +31,5 @@ def create_model(input_shape=(224, 224, 3)):
 def train_model(X_train, y_train, X_val, y_val):
     model = create_model()  # Создаем модель
     model.fit(X_train, y_train, epochs=10, validation_data=(X_val, y_val))  # Обучаем модель
-    model.save('mushroom_model.h5')  # Сохраняем обученную модель
+    model.save('mushroom_model_test.h5')  # Сохраняем обученную модель
     return model
