@@ -1,23 +1,22 @@
-from data_loader import load_and_process_data
-from sklearn.model_selection import train_test_split
-from model import create_model, train_model
+from data_loader import create_data_generator, TRAIN_DIR, VALID_DIR
+from model import create_mobilenetv2_model
+import os
 
+# Пути к аннотациям
+TRAIN_CSV = os.path.join(TRAIN_DIR, "_annotations.csv")
+VALID_CSV = os.path.join(VALID_DIR, "_annotations.csv")
 
-def main():
-    # Загружаем и обрабатываем данные
-    processed_images, labels = load_and_process_data('_annotations.valid.jsonl')
+# Создаем генераторы данных
+train_gen = create_data_generator(TRAIN_DIR, TRAIN_CSV)
+valid_gen = create_data_generator(VALID_DIR, VALID_CSV)
 
-    # Разделяем данные на обучающие и тестовые
-    X_train, X_val, y_train, y_val = train_test_split(processed_images, labels, test_size=0.2, random_state=42)
+# Создаем модель MobileNetV2
+model = create_mobilenetv2_model()
 
-    # Создаем и обучаем модель
-    model = train_model(X_train, y_train, X_val, y_val)
+# Обучаем модель
+model.fit(train_gen, validation_data=valid_gen, epochs=10)
 
-    # Оценка точности модели
-    loss, accuracy = model.evaluate(X_val, y_val)
-    print(f"Точность модели на тестовых данных: {accuracy:.4f}")
+# Сохраняем модель
+model.save("mobilenetv2_mushroom.h5")
 
-
-if __name__ == "__main__":
-    main()
-
+print("✅ Обучение завершено! Модель сохранена как mobilenetv2_mushroom.h5")
