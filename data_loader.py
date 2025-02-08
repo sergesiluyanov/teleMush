@@ -3,7 +3,7 @@ import pandas as pd
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 # Пути к папкам с изображениями
-BASE_DIR = "dataset"  # Укажи путь к твоему датасету
+BASE_DIR = "dataset"
 TRAIN_DIR = os.path.join(BASE_DIR, 'train')
 VALID_DIR = os.path.join(BASE_DIR, 'valid')
 TEST_DIR = os.path.join(BASE_DIR, 'test')
@@ -11,11 +11,25 @@ TEST_DIR = os.path.join(BASE_DIR, 'test')
 
 # Функция для загрузки аннотаций
 def load_annotations(csv_path):
+    # Загружаем CSV
     annotations = pd.read_csv(csv_path)
 
-    # Преобразуем метки в числа (съедобный = 0, несъедобный = 1)
-    label_map = {'съедобный': 0, 'несъедобный': 1}
-    annotations['label'] = annotations['label'].map(label_map)
+    print("📌 Загружен CSV-файл с колонками:", annotations.columns)  # Отладочный вывод
+
+    # Используем 'class' вместо 'label'
+    if 'class' not in annotations.columns:
+        raise ValueError(f"❌ В файле {csv_path} не найден столбец 'class'. Проверь структуру CSV!")
+
+    # Удаляем строки с пустыми значениями в 'class'
+    annotations = annotations.dropna(subset=['class'])
+
+    # Преобразуем метки в строки (если они не в строковом формате)
+    annotations['class'] = annotations['class'].astype(str)
+
+    # Переименовываем столбец 'class' в 'label' для удобства работы с Keras
+    annotations.rename(columns={'class': 'label'}, inplace=True)
+
+    print("✅ Метки успешно загружены. Пример данных:\n", annotations.head())
 
     return annotations
 
@@ -30,10 +44,10 @@ def create_data_generator(directory, csv_path, batch_size=32, target_size=(224, 
         dataframe=annotations,
         directory=directory,
         x_col="filename",
-        y_col="label",
+        y_col="label",  # Теперь мы используем 'label', который был 'class'
         target_size=target_size,
         batch_size=batch_size,
-        class_mode="sparse",
+        class_mode="categorical",  # Используем 'categorical', так как метки теперь строки
         shuffle=True
     )
 

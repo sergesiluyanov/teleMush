@@ -10,8 +10,20 @@ VALID_CSV = os.path.join(VALID_DIR, "_annotations.csv")
 train_gen = create_data_generator(TRAIN_DIR, TRAIN_CSV)
 valid_gen = create_data_generator(VALID_DIR, VALID_CSV)
 
-# Создаем модель MobileNetV2
-model = create_mobilenetv2_model()
+# Определяем количество классов
+num_classes = len(train_gen.class_indices)
+model = create_mobilenetv2_model(num_classes=num_classes)  # Передаём правильное число классов
+print(f"Обнаружено {num_classes} классов: {train_gen.class_indices}")
+print(f"Обнаружено {len(train_gen.class_indices)} классов: {train_gen.class_indices}")
+
+
+# Создаем модель с правильным количеством классов
+model = create_mobilenetv2_model(num_classes=num_classes)
+
+print(f"Количество классов в train_gen: {len(train_gen.class_indices)}")
+print(f"Количество классов в valid_gen: {len(valid_gen.class_indices)}")
+print(f"train_gen.class_indices: {train_gen.class_indices}")
+print(f"valid_gen.class_indices: {valid_gen.class_indices}")
 
 # Обучаем модель
 model.fit(train_gen, validation_data=valid_gen, epochs=10)
