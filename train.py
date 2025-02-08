@@ -1,35 +1,23 @@
-# model.py
-import tensorflow as tf
-from tensorflow.keras import layers, models
+from data_loader import load_and_process_data
+from sklearn.model_selection import train_test_split
+from model import create_model, train_model
 
 
-def create_model(input_shape=(224, 224, 3)):
-    model = models.Sequential([
-        layers.InputLayer(input_shape=input_shape),
-        layers.Conv2D(32, (3, 3), activation='relu'),
-        layers.MaxPooling2D((2, 2)),
+def main():
+    # Загружаем и обрабатываем данные
+    processed_images, labels = load_and_process_data('_annotations.valid.jsonl')
 
-        layers.Conv2D(64, (3, 3), activation='relu'),
-        layers.MaxPooling2D((2, 2)),
+    # Разделяем данные на обучающие и тестовые
+    X_train, X_val, y_train, y_val = train_test_split(processed_images, labels, test_size=0.2, random_state=42)
 
-        layers.Conv2D(128, (3, 3), activation='relu'),
-        layers.MaxPooling2D((2, 2)),
+    # Создаем и обучаем модель
+    model = train_model(X_train, y_train, X_val, y_val)
 
-        layers.Flatten(),
-        layers.Dense(128, activation='relu'),
-        layers.Dense(2, activation='softmax')  # 2 класса: съедобный/несъедобный
-    ])
-
-    model.compile(optimizer='adam',
-                  loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
-
-    return model
+    # Оценка точности модели
+    loss, accuracy = model.evaluate(X_val, y_val)
+    print(f"Точность модели на тестовых данных: {accuracy:.4f}")
 
 
-# Функция для обучения модели
-def train_model(X_train, y_train, X_val, y_val):
-    model = create_model()  # Создаем модель
-    model.fit(X_train, y_train, epochs=10, validation_data=(X_val, y_val))  # Обучаем модель
-    model.save('mushroom_model_test.h5')  # Сохраняем обученную модель
-    return model
+if __name__ == "__main__":
+    main()
+
