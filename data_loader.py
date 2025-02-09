@@ -40,6 +40,9 @@ def create_data_generator(directory, csv_path, batch_size=32, target_size=(224, 
 
     annotations = load_annotations(csv_path)
 
+    print("Пример данных из CSV:")
+    print(annotations.head())  # Проверяем, какие данные идут в y_col
+
     generator = datagen.flow_from_dataframe(
         dataframe=annotations,
         directory=directory,
