@@ -1,57 +1,68 @@
 import os
 import pandas as pd
+from sklearn.model_selection import train_test_split
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-# Пути к папкам с изображениями
+# Пути
 BASE_DIR = "dataset"
-TRAIN_DIR = os.path.join(BASE_DIR, 'train')
-VALID_DIR = os.path.join(BASE_DIR, 'valid')
-TEST_DIR = os.path.join(BASE_DIR, 'test')
+TRAIN_DIR = os.path.join(BASE_DIR, "train")
+VALID_DIR = os.path.join(BASE_DIR, "valid")
+CSV_PATH = os.path.join(BASE_DIR, "annotations.csv")  # Файл с разметкой
+IMAGE_DIR = BASE_DIR  # Изображения находятся в той же папке
 
+# Доли разбиения TRAIN/VALID/TEST
+TRAIN_SPLIT = 0.7  # 70% - обучение
+VALID_SPLIT = 0.15  # 15% - валидация
+TEST_SPLIT = 0.15  # 15% - тестирование
 
-# Функция для загрузки аннотаций
+# Функция загрузки CSV
 def load_annotations(csv_path):
-    # Загружаем CSV
-    annotations = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, sep=';', encoding='utf-8')  # Читаем CSV с правильной кодировкой
 
-    print("📌 Загружен CSV-файл с колонками:", annotations.columns)  # Отладочный вывод
+    if 'filename' not in df.columns or 'class' not in df.columns:
+        raise ValueError("❌ В CSV должны быть столбцы 'filename' и 'class'!")
 
-    # Используем 'class' вместо 'label'
-    if 'class' not in annotations.columns:
-        raise ValueError(f"❌ В файле {csv_path} не найден столбец 'class'. Проверь структуру CSV!")
+    df.dropna(subset=['class'], inplace=True)  # Убираем пустые значения
+    df['class'] = df['class'].astype(str).str.strip()  # Приводим классы к строковому типу без пробелов
+    df.rename(columns={'class': 'label'}, inplace=True)  # Переименовываем в label
+    return df
 
-    # Удаляем строки с пустыми значениями в 'class'
-    annotations = annotations.dropna(subset=['class'])
+# Функция разбиения датасета
+def split_dataset(df):
+    train, temp = train_test_split(df, test_size=1 - TRAIN_SPLIT, stratify=df['label'], random_state=42)
+    valid, test = train_test_split(temp, test_size=TEST_SPLIT / (VALID_SPLIT + TEST_SPLIT), stratify=temp['label'],
+                                   random_state=42)
+    return train, valid, test
 
-    # Преобразуем метки в строки (если они не в строковом формате)
-    annotations['class'] = annotations['class'].astype(str)
-
-    # Переименовываем столбец 'class' в 'label' для удобства работы с Keras
-    annotations.rename(columns={'class': 'label'}, inplace=True)
-
-    print("✅ Метки успешно загружены. Пример данных:\n", annotations.head())
-
-    return annotations
-
-
-# Функция для создания генератора данных
-def create_data_generator(directory, csv_path, batch_size=32, target_size=(224, 224)):
-    datagen = ImageDataGenerator(rescale=1. / 255)  # Нормализация изображений
-
-    annotations = load_annotations(csv_path)
-
-    print("Пример данных из CSV:")
-    print(annotations.head())  # Проверяем, какие данные идут в y_col
-
-    generator = datagen.flow_from_dataframe(
-        dataframe=annotations,
-        directory=directory,
+# Функция создания генератора данных
+def create_data_generator(df, batch_size=32, target_size=(224, 224)):
+    datagen = ImageDataGenerator(rescale=1. / 255)
+    return datagen.flow_from_dataframe(
+        dataframe=df,
+        directory=IMAGE_DIR,  # Папка с изображениями
         x_col="filename",
-        y_col="label",  # Теперь мы используем 'label', который был 'class'
+        y_col="label",
         target_size=target_size,
         batch_size=batch_size,
-        class_mode="categorical",  # Используем 'categorical', так как метки теперь строки
+        class_mode="categorical",
         shuffle=True
     )
 
-    return generator
+# Главная функция загрузки
+def load_data():
+    df = load_annotations(CSV_PATH)  # Загружаем разметку
+    train_df, valid_df, test_df = split_dataset(df)  # Разбиваем на train, valid, test
+
+    train_gen = create_data_generator(train_df)
+    valid_gen = create_data_generator(valid_df)
+    test_gen = create_data_generator(test_df)
+
+    return train_gen, valid_gen, test_gen
+
+# Запуск
+if __name__ == "__main__":
+    train_gen, valid_gen, test_gen = load_data()
+    print("✅ Данные загружены. Размеры:")
+    print(f"Train: {len(train_gen.filenames)} изображений")
+    print(f"Valid: {len(valid_gen.filenames)} изображений")
+    print(f"Test: {len(test_gen.filenames)} изображений")

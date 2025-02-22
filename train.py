@@ -1,48 +1,55 @@
-from data_loader import create_data_generator, TRAIN_DIR, VALID_DIR
-from model import create_mobilenetv2_model
 import os
+import numpy as np
+import matplotlib.pyplot as plt
+from data_loader import create_data_generator, TRAIN_DIR, VALID_DIR, load_annotations
+from model import create_mobilenetv2_model
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 # Пути к аннотациям
 TRAIN_CSV = os.path.join(TRAIN_DIR, "_annotations.csv")
 VALID_CSV = os.path.join(VALID_DIR, "_annotations.csv")
 
-# Создаем генераторы данных
-train_gen = create_data_generator(TRAIN_DIR, TRAIN_CSV)
-valid_gen = create_data_generator(VALID_DIR, VALID_CSV)
+# Загружаем аннотации
+train_df = load_annotations(TRAIN_CSV)
+valid_df = load_annotations(VALID_CSV)
+
+# Создаем генераторы данных с аугментацией
+train_gen = create_data_generator(train_df, augment=True)
+valid_gen = create_data_generator(valid_df)
 
 # Определяем количество классов
 num_classes = len(train_gen.class_indices)
-model = create_mobilenetv2_model(num_classes=num_classes)  # Передаём правильное число классов
-print(f"Обнаружено {num_classes} классов: {train_gen.class_indices}")
-print(f"Обнаружено {len(train_gen.class_indices)} классов: {train_gen.class_indices}")
-
-
-# Создаем модель с правильным количеством классов
 model = create_mobilenetv2_model(num_classes=num_classes)
 
-train_classes = set(train_gen.class_indices.keys())
-valid_classes = set(valid_gen.class_indices.keys())
+print(f"Обнаружено {num_classes} классов: {train_gen.class_indices}")
 
-missing_classes = train_classes - valid_classes
-if missing_classes:
-    print(f"⚠️ ВНИМАНИЕ! Эти классы отсутствуют в valid: {missing_classes}")
+# Проверка баланса классов
+train_counts = np.sum([labels for _, labels in train_gen], axis=0)
+valid_counts = np.sum([labels for _, labels in valid_gen], axis=0)
 
-batch = next(iter(train_gen))  # Получаем один batch данных
-images, labels = batch
+print(f"📊 Распределение классов в Train: {train_counts}")
+print(f"📊 Распределение классов в Valid: {valid_counts}")
 
-print(f"Тип images: {type(images)}, Форма: {images.shape}")
-print(f"Тип labels: {type(labels)}, Форма: {labels.shape}")
-print(f"Пример labels:\n{labels[:5]}")
+# Колбэки для контроля обучения
+early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=2)
 
-print(f"Количество классов в train_gen: {len(train_gen.class_indices)}")
-print(f"Количество классов в valid_gen: {len(valid_gen.class_indices)}")
-print(f"train_gen.class_indices: {train_gen.class_indices}")
-print(f"valid_gen.class_indices: {valid_gen.class_indices}")
-
-# Обучаем модель
-model.fit(train_gen, validation_data=valid_gen, epochs=10)
+# Обучение модели
+history = model.fit(
+    train_gen,
+    validation_data=valid_gen,
+    epochs=20,
+    callbacks=[early_stopping, reduce_lr]
+)
 
 # Сохраняем модель
 model.save("mobilenetv2_mushroom.h5")
-
 print("✅ Обучение завершено! Модель сохранена как mobilenetv2_mushroom.h5")
+
+# Визуализация обучения
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel('Эпохи')
+plt.ylabel('Точность')
+plt.legend()
+plt.show()
