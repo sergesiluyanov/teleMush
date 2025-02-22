@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import Counter
 from data_loader import create_data_generator, TRAIN_DIR, VALID_DIR, load_annotations
 from model import create_mobilenetv2_model
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
@@ -24,11 +25,11 @@ model = create_mobilenetv2_model(num_classes=num_classes)
 print(f"Обнаружено {num_classes} классов: {train_gen.class_indices}")
 
 # Проверка баланса классов
-train_counts = np.sum([labels for _, labels in train_gen], axis=0)
-valid_counts = np.sum([labels for _, labels in valid_gen], axis=0)
+train_counts = Counter(train_gen.classes)
+valid_counts = Counter(valid_gen.classes)
 
-print(f"📊 Распределение классов в Train: {train_counts}")
-print(f"📊 Распределение классов в Valid: {valid_counts}")
+print(f"📊 Распределение классов в Train: {dict(train_counts)}")
+print(f"📊 Распределение классов в Valid: {dict(valid_counts)}")
 
 # Колбэки для контроля обучения
 early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)

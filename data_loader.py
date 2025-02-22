@@ -35,8 +35,22 @@ def split_dataset(df):
     return train, valid, test
 
 # Функция создания генератора данных
-def create_data_generator(df, batch_size=32, target_size=(224, 224)):
-    datagen = ImageDataGenerator(rescale=1. / 255)
+def create_data_generator(df, batch_size=32, target_size=(224, 224), augment=False):
+    # Определяем аугментацию
+    if augment:
+        datagen = ImageDataGenerator(
+            rescale=1. / 255,
+            rotation_range=30,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True,
+            fill_mode='nearest'
+        )
+    else:
+        datagen = ImageDataGenerator(rescale=1. / 255)
+
     return datagen.flow_from_dataframe(
         dataframe=df,
         directory=IMAGE_DIR,  # Папка с изображениями
